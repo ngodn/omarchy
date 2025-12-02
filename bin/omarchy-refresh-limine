@@ -4,11 +4,27 @@ if [[ -f /boot/EFI/linux/omarchy_linux.efi ]] && [[ -f /boot/EFI/linux/$(cat /et
   echo "Cleanup extra UKI"
   sudo rm -f /boot/EFI/Linux/$(cat /etc/machine-id)_linux.efi
 fi
-echo "Resetting limine config"
 
-sudo mv /boot/limine.conf /boot/limine.conf.bak
+# Detect limine.conf location (use sudo test in case /boot requires elevated permissions)
+# Priority: USB EFI > regular EFI > /boot/limine.conf > /boot/limine/limine.conf (BIOS)
+if sudo test -f /boot/EFI/BOOT/limine.conf; then
+  limine_config="/boot/EFI/BOOT/limine.conf"
+elif sudo test -f /boot/EFI/limine/limine.conf; then
+  limine_config="/boot/EFI/limine/limine.conf"
+elif sudo test -f /boot/limine.conf; then
+  limine_config="/boot/limine.conf"
+elif sudo test -f /boot/limine/limine.conf; then
+  limine_config="/boot/limine/limine.conf"
+else
+  # Default to /boot/limine.conf if no existing config found
+  limine_config="/boot/limine.conf"
+fi
 
-sudo tee /boot/limine.conf <<EOF >/dev/null
+echo "Resetting limine config at $limine_config"
+
+sudo mv "$limine_config" "${limine_config}.bak" 2>/dev/null || true
+
+sudo tee "$limine_config" <<EOF >/dev/null
 ### Read more at config document: https://github.com/limine-bootloader/limine/blob/trunk/CONFIG.md
 #timeout: 3
 default_entry: 2

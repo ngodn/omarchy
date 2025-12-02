@@ -2,11 +2,24 @@ echo "Cleanup extra UKI if needed to prevent errors"
 if [[ -f /boot/EFI/linux/omarchy_linux.efi ]] && [[ -f /boot/EFI/linux/$(cat /etc/machine-id)_linux.efi ]]; then
   sudo rm -f /boot/EFI/Linux/$(cat /etc/machine-id)_linux.efi
 
-  if grep -q "/boot/EFI/Linux/$(cat /etc/machine-id)_linux.efi" /boot/limine.conf; then
-    echo -e "Resetting limine config\n(you may need to re-add other entries via sudo limine-update)"
+  # Detect limine.conf location (use sudo test in case /boot requires elevated permissions)
+  if sudo test -f /boot/EFI/BOOT/limine.conf; then
+    limine_config="/boot/EFI/BOOT/limine.conf"
+  elif sudo test -f /boot/EFI/limine/limine.conf; then
+    limine_config="/boot/EFI/limine/limine.conf"
+  elif sudo test -f /boot/limine.conf; then
+    limine_config="/boot/limine.conf"
+  elif sudo test -f /boot/limine/limine.conf; then
+    limine_config="/boot/limine/limine.conf"
+  else
+    limine_config="/boot/limine.conf"
+  fi
 
-    sudo mv /boot/limine.conf /boot/limine.conf.bak
-  sudo tee /boot/limine.conf <<EOF >/dev/null
+  if sudo grep -q "/boot/EFI/Linux/$(cat /etc/machine-id)_linux.efi" "$limine_config" 2>/dev/null; then
+    echo -e "Resetting limine config at $limine_config\n(you may need to re-add other entries via sudo limine-update)"
+
+    sudo mv "$limine_config" "${limine_config}.bak" 2>/dev/null || true
+  sudo tee "$limine_config" <<EOF >/dev/null
 ### Read more at config document: https://github.com/limine-bootloader/limine/blob/trunk/CONFIG.md
 #timeout: 3
 default_entry: 2
